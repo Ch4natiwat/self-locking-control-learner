@@ -8,12 +8,34 @@ DEFAULT_START_POSITION = [0, 0]
 DEFAULT_GOAL_POSITION = [GRID_SIZE - 1, GRID_SIZE - 1]
 
 
-def get_direction(state: np.ndarray) -> tuple:
+def get_base_action(agent_position: list, goal_position: list) -> np.ndarray:
     
-    return (0, 1, 0, 1)
+    action = np.zeros(4, dtype=int)
+    
+    if agent_position[0] < goal_position[0]:
+        action[1] = 1
+    elif agent_position[0] > goal_position[0]:
+        action[0] = 1
+
+    if agent_position[1] < goal_position[1]:
+        action[3] = 1
+    elif agent_position[1] > goal_position[1]:
+        action[2] = 1
+    
+    return action
 
 
-def move_agent(agent_position: list, action: tuple) -> list:
+def get_action(state: np.ndarray, agent_position: list, goal_position: list) -> np.ndarray:
+    
+    action = get_base_action(agent_position, goal_position)
+    
+    # TODO
+    # Modity base action according to past states and current state
+    
+    return action
+
+
+def move_agent(agent_position: list, action: np.ndarray) -> list:
 
     up, down, left, right = action
 
@@ -44,7 +66,7 @@ def simulate(start_position: list=DEFAULT_START_POSITION, goal_position: list=DE
         state = initial_state.copy()
         state[agent_position[0], agent_position[1]] = [255, 0, 0]
 
-        action = get_direction(state)
+        action = get_action(state, agent_position, goal_position)
         agent_position = move_agent(agent_position, action)
 
         print(f"Agent Position: {agent_position}")
