@@ -1,11 +1,57 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
+
+
+MAX_STATES = 10
+GRID_SIZE = 128
+
+
+class SelfLockingControlBinder(nn.Module):
+    
+    def __init__(self, model: "DQNN"):
+        
+        super(SelfLockingControlBinder, self).__init__()
+        
+        self.max_states = MAX_STATES
+        self.model = model
+        self.number_of_states = 0
+        self.states = torch.zeros((1, MAX_STATES * 3, GRID_SIZE, GRID_SIZE))
+        self.is_locked = False
+        self.locked_rebind = None
+
+
+    def rebind(self, state: np.ndarray, action: np.ndarray):
+
+        if self.is_locked:
+            rebind = self.locked_rebind
+            
+        else:
+            state = torch.from_numpy(np.transpose(state, (2, 0, 1)))
+            
+            if self.number_of_states < self.max_states:
+                start_idx = self.number_of_states * 3
+                end_idx = start_idx + 3
+                self.states[0, start_idx:end_idx, :, :] = state
+                self.number_of_states += 1
+            else:
+                self.states[0, :-3, :, :] = self.states[0, 3:, :, :]
+                self.states[0, -3:, :, :] = state
+            
+            rebind = self.model(self.states)
+            
+            if rebind[0, -1] > 0:
+                self.is_locked = True
+                self.locked_rebind = rebind
+                
+            # TODO
+        
 
 
 class DQNN(nn.Module):
     
-    def __init__(self, input_channels=30, num_outputs=17):
+    def __init__(self, input_channels=30, num_outputs=21):
         
         super(DQNN, self).__init__()
 
