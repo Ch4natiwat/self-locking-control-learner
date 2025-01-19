@@ -20,16 +20,23 @@ class SelfLockingControlBinder(nn.Module):
         self.states = torch.zeros((1, MAX_STATES * 3, GRID_SIZE, GRID_SIZE))
         self.is_locked = False
         self.locked_rebind = None
+        
+        
+    def sinkhorn_operator(scores, num_iters=20, epsilon=1e-6):
+
+        logits = scores.unsqueeze(0)
+        for _ in range(num_iters):
+            logits = logits - torch.logsumexp(logits, dim=2, keepdim=True)
+            logits = logits - torch.logsumexp(logits, dim=1, keepdim=True) + epsilon
+            
+        return torch.exp(logits)[0]
 
 
     def rebind(self, state: np.ndarray, action: np.ndarray):
-
         if self.is_locked:
             rebind = self.locked_rebind
-            
         else:
             state = torch.from_numpy(np.transpose(state, (2, 0, 1)))
-            
             if self.number_of_states < self.max_states:
                 start_idx = self.number_of_states * 3
                 end_idx = start_idx + 3
@@ -38,14 +45,20 @@ class SelfLockingControlBinder(nn.Module):
             else:
                 self.states[0, :-3, :, :] = self.states[0, 3:, :, :]
                 self.states[0, -3:, :, :] = state
-            
+
             rebind = self.model(self.states)
-            
+
             if rebind[0, -1] > 0:
                 self.is_locked = True
                 self.locked_rebind = rebind
                 
-            # TODO
+        # Apply Sinkhorn operator
+        scores = rebind[0, :-1]
+        permutation = self.sinkhorn_operator(scores)
+        action_tensor = torch.tensor(action, dtype=torch.float32)
+        new_action = torch.matmul(permutation, action_tensor)
+
+        return new_action
         
 
 
