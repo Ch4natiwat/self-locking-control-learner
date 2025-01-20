@@ -1,4 +1,5 @@
 import numpy as np
+from model import SelfLockingControlBinder, DQNN
 
 
 GRID_SIZE = 128
@@ -57,6 +58,9 @@ def get_initial_state(goal_position: list) -> np.ndarray:
 
 
 def simulate(start_position: list=DEFAULT_START_POSITION, goal_position: list=DEFAULT_GOAL_POSITION):
+    
+    model = DQNN()
+    wrapper = SelfLockingControlBinder(model)
 
     initial_state = get_initial_state(goal_position)
     agent_position = start_position
@@ -67,6 +71,7 @@ def simulate(start_position: list=DEFAULT_START_POSITION, goal_position: list=DE
         state[agent_position[0], agent_position[1]] = [255, 0, 0]
 
         action = get_action(state, agent_position, goal_position)
+        action = wrapper.rebind(state, action)
         agent_position = move_agent(agent_position, action)
 
         print(f"Agent Position: {agent_position}")
